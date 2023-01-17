@@ -13,8 +13,15 @@
 namespace tsdb {
 template <typename IO, typename CRC = CRCDefault, typename ClockType = std::chrono::system_clock>
 struct HeaderSectorsManager {
-  explicit HeaderSectorsManager(IO& io, uint32_t begin_sector_addr, uint32_t n_header_sectors, uint32_t n_total_sectors)
-      : begin_sector_addr(begin_sector_addr), io(io), n_header_sectors(n_header_sectors), n_total_sectors(n_total_sectors) {
+  explicit HeaderSectorsManager(
+      IO& io,
+      uint32_t begin_sector_addr,
+      uint32_t n_header_sectors,
+      uint32_t n_total_sectors)
+      : io(io),
+        begin_sector_addr(begin_sector_addr),
+        n_header_sectors(n_header_sectors),
+        n_total_sectors(n_total_sectors) {
     assert(n_header_sectors < n_total_sectors);
     init();
   }
