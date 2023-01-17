@@ -25,12 +25,12 @@ struct Series {
   using HeaderSectorsManagerType = HeaderSectorsManager<IO, CRC, ClockType>;
   explicit Series(IO& io, const Partition& partition, const SeriesConfig& cfg)
       : io(io), cfg(cfg), partition(partition) {
-      assert(n_header_sectors > 0);
-      assert(n_total_sectors > 0);
-      assert(cfg.max_entries > 0);
-      assert(cfg.max_file_size > 0);
+    assert(n_header_sectors > 0);
+    assert(n_total_sectors > 0);
+    assert(cfg.max_entries > 0);
+    assert(cfg.max_file_size > 0);
 
-      assert(n_header_sectors < n_total_sectors);
+    assert(n_header_sectors < n_total_sectors);
   }
 
   IO& io;
@@ -42,12 +42,16 @@ struct Series {
 
   HeaderSectorsManagerType header_sectors_manager{io, partition.begin_sector_addr, n_header_sectors, n_total_sectors};
 
+  std::mutex lock;
+
  public:
   /// Insert whole buffer at once
   void insert(const void* buffer, uint32_t len, uint32_t timestamp = 0) {
     assert(buffer);
     assert(len);
     assert(len <= cfg.max_file_size);
+
+    std::lock_guard g(lock);
 
     if (timestamp == 0) {
       timestamp = duration_cast<std::chrono::seconds>(ClockType::now().time_since_epoch()).count();
@@ -64,7 +68,7 @@ struct Series {
   }
 
   struct InsertTransaction {
-    InsertTransaction(IO& io, HeaderSectorsManagerType& header_sectors_manager, LogEntry& entry) : entry(entry), io(io), header_sectors_manager(header_sectors_manager) {}
+    InsertTransaction(IO& io, HeaderSectorsManagerType& header_sectors_manager, LogEntry& entry, std::mutex& lock) : entry(entry), io(io), header_sectors_manager(header_sectors_manager), lock(lock) {}
 
     void write(void* buf, uint32_t len) {
       if (is_finalized) {
@@ -91,10 +95,12 @@ struct Series {
     IO& io;
     HeaderSectorsManagerType& header_sectors_manager;
     CRC crc_computer;
+    std::mutex& lock;
 
     LogEntry& entry;
     uint32_t write_sector_idx{0};
     uint32_t written_length{0};
+
    public:
     bool is_finalized{false};
     void finalize() {
@@ -103,6 +109,7 @@ struct Series {
       }
       entry.checksum = crc_computer.get();
       header_sectors_manager.advance_slot();
+      lock.unlock();
       is_finalized = true;
     }
   };
@@ -111,12 +118,14 @@ struct Series {
     assert(len);
     assert(len <= cfg.max_file_size);
 
+    lock.lock();
+
     if (timestamp == 0) {
       timestamp = duration_cast<std::chrono::seconds>(ClockType::now().time_since_epoch()).count();
     }
 
     auto& entry = header_sectors_manager.add_log_partial(len, timestamp);
-    return {io, header_sectors_manager, entry};
+    return {io, header_sectors_manager, entry, lock};
   }
 
   struct DataLogEntry {
@@ -158,6 +167,7 @@ struct Series {
   template <typename TCb>
     requires std::is_invocable_r_v<bool, TCb, DataLogEntry&>
   void iterate(const TCb& fcn, bool descending = true, uint32_t after = 0, uint32_t before = 0) {
+    std::lock_guard g(lock);
     auto entries = header_sectors_manager.get_entries(descending, after, before);
 
     for (auto& e : entries) {
