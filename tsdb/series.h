@@ -32,7 +32,7 @@ struct Series {
 
     assert(n_header_sectors < n_total_sectors);
   }
-
+ private:
   IO& io;
   Partition partition;
   SeriesConfig cfg;
