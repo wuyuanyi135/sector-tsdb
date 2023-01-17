@@ -148,8 +148,10 @@ struct HeaderSectorsManager {
   RelativeSectorAddress add_log(uint32_t data_size, uint32_t checksum, uint32_t timestamp) {
     auto& entry = add_log_partial(data_size, timestamp);
     entry.checksum = checksum;
+    // Copy it since advance_slot will change entry!
+    auto ret = entry.begin_sector_offset;
     advance_slot();
-    return entry.begin_sector_offset;
+    return ret;
   }
 
   void advance_slot() {

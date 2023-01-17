@@ -135,3 +135,14 @@ TEST_CASE("partial write and partial read") {
         false);
   }
 }
+
+TEST_CASE("ESP32 errorous write sector order") {
+  SectorMemoryIO io{512};
+
+  auto partition = Partition::create_with_sector_address(10, 120);
+  Series series{io, partition, SeriesConfig{100, 4096}};
+
+  for (int i = 0; i < 100; ++i) {
+    series.insert(&i, 4, 0);
+  }
+}
