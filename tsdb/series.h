@@ -34,8 +34,8 @@ struct Series {
   }
  private:
   IO& io;
-  Partition partition;
   SeriesConfig cfg;
+  Partition partition;
 
   uint32_t n_header_sectors{cfg.max_entries / HeaderSector::n_entries + 1};
   uint32_t n_total_sectors{partition.n_sectors};
