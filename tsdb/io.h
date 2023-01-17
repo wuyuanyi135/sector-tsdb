@@ -33,7 +33,12 @@ struct IO {
       // no partial
       write_sectors(buffer, sector_addr, n_sectors);
     } else {
-      write_sectors(buffer, sector_addr, n_sectors - 1);
+      // If there is full sector, write full sector
+      if (n_sectors > 1) {
+        write_sectors(buffer, sector_addr, n_sectors - 1);
+      }
+
+      // Write partial sectors
       auto tmp = std::make_unique<uint8_t[]>(sector_size);
       memcpy(tmp.get(), (uint8_t*)buffer + sector_size * (n_sectors - 1), partial_size);
       memset(tmp.get() + partial_size, 0, sector_size - partial_size);
@@ -48,8 +53,12 @@ struct IO {
       // no partial
       read_sectors(buffer, sector_addr, n_sectors);
     } else {
+      // See read_bytes_from_sectors
+      if (n_sectors > 1) {
+        read_sectors(buffer, sector_addr, n_sectors - 1);
+      }
+
       auto tmp = std::make_unique<uint8_t[]>(sector_size);
-      read_sectors(buffer, sector_addr, n_sectors - 1);
       read_sectors(tmp.get(), sector_addr + n_sectors - 1, 1);
       memset(tmp.get() + partial_size, 0, sector_size - partial_size);
       memcpy((uint8_t*)buffer + (n_sectors - 1) * sector_size, tmp.get(), partial_size);
@@ -66,10 +75,7 @@ struct SectorMemoryIO : IO<SectorMemoryIO> {
 
   void write_sectors(const void* in, uint32_t begin_sector, uint32_t n_sector) {
     assert(in);
-
-    if (n_sector == 0) {
-      return;
-    }
+    assert(n_sector);
 
     if (begin_sector + n_sector > mem.size()) {
       throw IOError("Failed to write sectors");
@@ -80,6 +86,8 @@ struct SectorMemoryIO : IO<SectorMemoryIO> {
   }
 
   void read_sectors(void* out, uint32_t begin_sector, uint32_t n_sector) {
+    assert(n_sector);
+
     if (begin_sector + n_sector > mem.size()) {
       throw IOError("Failed to read sectors");
     }
