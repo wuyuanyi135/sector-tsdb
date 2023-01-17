@@ -9,7 +9,6 @@
 #include "exception.h"
 #include "header_sectors_manager.h"
 #include "io.h"
-#include "logger.h"
 #include "partition.h"
 #include "sector_defs.h"
 
