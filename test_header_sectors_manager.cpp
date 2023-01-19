@@ -81,7 +81,7 @@ TEST_CASE("header sectors manager") {
       REQUIRE(current.checksum == 0x01);
     }
     for (int i = 1; i < entries.size(); ++i) {
-      auto& current = entries[i-1];
+      auto& current = entries[i - 1];
       auto& next = entries[i];
 
       REQUIRE(current.timestamp < next.timestamp);
@@ -124,8 +124,47 @@ TEST_CASE("header sectors manager") {
       REQUIRE(!is_overlapping(current, next));
     }
   }
+}
 
-  SECTION("If timestamps are the same, should load in growing order") {
+TEST_CASE("If timestamps are the same, should load in growing order") {
+  SectorMemoryIO io{100};
+  HeaderSectorsManager hsm{io, 0, 3, 100};
+  for (int i = 0; i < 50; ++i) {
+    hsm.add_log(1, i, 1);
+  }
+  auto entries = hsm.get_entries(false);
 
+  for (int i = 0; i < entries.size(); ++i) {
+    REQUIRE(entries[i].checksum == i);
+  }
+}
+
+TEST_CASE("clear header sector managers") {
+  SectorMemoryIO io{1000};
+  {
+    HeaderSectorsManager hsm{io, 0, 3, 1000};
+    for (int i = 1; i < 50; ++i) {
+      hsm.add_log(i * 20, i, i);
+    }
+
+    hsm.sync_current_sector();
+  }
+  {
+    HeaderSectorsManager hsm{io, 0, 3, 1000};
+    auto entries = hsm.get_entries(false);
+    REQUIRE(entries.size() == 49);
+    for (int i = 1; i < 50; ++i) {
+      REQUIRE(entries[i - 1].checksum == i);
+      REQUIRE(entries[i - 1].size == i * 20);
+      REQUIRE(entries[i - 1].timestamp == i);
+    }
+
+    hsm.clear();
+    entries = hsm.get_entries();
+    REQUIRE(entries.size() == 0);
+  }
+  {
+    HeaderSectorsManager hsm{io, 0, 3, 1000};
+    REQUIRE(hsm.get_entries().size() == 0);
   }
 }

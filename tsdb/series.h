@@ -187,6 +187,10 @@ struct Series {
     }
   }
 
+  void clear() {
+    std::lock_guard g(lock);
+    header_sectors_manager.clear();
+  }
  protected:
   void write_data_sectors(const void* buffer, uint32_t len, AbsoluteSectorAddress begin_sector_addr) {
     io.write_sectors(buffer, begin_sector_addr, min_sector_for_size(len));

@@ -160,3 +160,35 @@ TEST_CASE("get cfg and partition") {
   REQUIRE(cfg.max_entries == 100);
   REQUIRE(cfg.max_file_size == 4096);
 }
+
+TEST_CASE("series clear") {
+  SectorMemoryIO io{512};
+
+  auto partition = Partition::create_with_sector_address(10, 120);
+  Series series{io, partition, SeriesConfig{100, 4096}};
+
+  std::string buffer = "hello, world!";
+  for (int i = 0; i < 5; ++i) {
+    series.insert(buffer.data(), buffer.size(), 0);
+  }
+
+  {
+    int count = 0;
+    series.iterate([&](auto& data_log_entry) -> bool {
+      count++;
+      return true;
+    });
+    REQUIRE(count == 5);
+  }
+
+  series.clear();
+
+  {
+    int count = 0;
+    series.iterate([&](auto& data_log_entry) -> bool {
+      count++;
+      return true;
+    });
+    REQUIRE(count == 0);
+  }
+}

@@ -9,6 +9,7 @@
 
 #include "crc.h"
 #include "sector_defs.h"
+#include "exception.h"
 
 namespace tsdb {
 template <typename IO, typename CRC = CRCDefault, typename ClockType = std::chrono::system_clock>
@@ -127,8 +128,14 @@ struct HeaderSectorsManager {
     assert(timestamp >= previous_timestamp);
     previous_timestamp = timestamp;
 
+    if (data_size == 0) {
+      throw Error("zero data size");
+    }
+
     size_t required_sectors = min_sector_for_size(data_size);
-    assert(required_sectors <= n_data_sectors);
+    if (required_sectors > n_data_sectors) {
+      throw Error("data size too big");
+    }
 
     if (required_sectors > n_data_sectors - current_data_sector_offset) {
       // No space on the tail of the data sectors, start from head
@@ -201,7 +208,7 @@ struct HeaderSectorsManager {
     auto last = previous_log_entry(tmp_header_sector, tmp_sector_idx, tmp_slot_idx);
 
     // check condition 3 for 'last'
-    if ((before == 0 || last.timestamp < before) && (after == 0 || last.timestamp >= after)) {
+    if ((last.timestamp != 0) && (before == 0 || last.timestamp < before) && (after == 0 || last.timestamp >= after)) {
       entries.push_back(last);
     }
 
@@ -238,6 +245,21 @@ struct HeaderSectorsManager {
       std::reverse(entries.begin(), entries.end());
     }
     return entries;
+  }
+
+  /// Remove all entries
+  void clear() {
+    for (int i = 0; i < n_header_sectors; ++i) {
+      load_header_sector(i);
+      current_header_sector->clear();
+      sync_current_sector();
+    }
+
+    // Load initial state
+    load_header_sector(0);
+    current_slot_idx = 0;
+    current_data_sector_offset = 0;
+    previous_timestamp = 0;
   }
 };
 }  // namespace tsdb
