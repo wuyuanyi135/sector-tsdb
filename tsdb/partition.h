@@ -28,6 +28,11 @@ struct Partition {
   Partition(uint32_t begin_sector_addr, uint32_t n_sectors) : begin_sector_addr(begin_sector_addr), n_sectors(n_sectors) {}
 
  public:
+  bool operator==(const Partition& rhs) const = default;
+  bool operator!=(const Partition& rhs) const {
+    return !(rhs == *this);
+  }
+
   static Partition create(uint32_t begin_sector_addr, uint32_t n_sectors) {
     assert(n_sectors > 0);
     return {begin_sector_addr, n_sectors};

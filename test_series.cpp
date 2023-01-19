@@ -146,3 +146,17 @@ TEST_CASE("ESP32 errorous write sector order") {
     series.insert(&i, 4, 0);
   }
 }
+
+TEST_CASE("get cfg and partition") {
+  SectorMemoryIO io{512};
+
+  auto partition = Partition::create_with_sector_address(10, 120);
+  Series series{io, partition, SeriesConfig{100, 4096}};
+
+  auto& p = series.get_partition();
+  auto& cfg = series.get_series_config();
+
+  REQUIRE(p == partition);
+  REQUIRE(cfg.max_entries == 100);
+  REQUIRE(cfg.max_file_size == 4096);
+}

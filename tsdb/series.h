@@ -32,6 +32,7 @@ struct Series {
 
     assert(n_header_sectors < n_total_sectors);
   }
+
  private:
   IO& io;
   SeriesConfig cfg;
@@ -45,6 +46,14 @@ struct Series {
   std::mutex lock;
 
  public:
+  const Partition& get_partition() {
+    return partition;
+  }
+
+  const SeriesConfig& get_series_config() {
+    return cfg;
+  }
+
   /// Insert whole buffer at once
   void insert(const void* buffer, uint32_t len, uint32_t timestamp = 0) {
     assert(buffer);
