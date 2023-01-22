@@ -72,8 +72,10 @@ struct SectorMemoryIO : IO<SectorMemoryIO> {
   explicit SectorMemoryIO(uint32_t n_sectors) { mem.resize(n_sectors); }
 
   std::vector<SectorType> mem;
+  std::mutex lock;
 
   void write_sectors(const void* in, uint32_t begin_sector, uint32_t n_sector) {
+    std::lock_guard g(lock);
     assert(in);
     assert(n_sector);
 
@@ -86,6 +88,7 @@ struct SectorMemoryIO : IO<SectorMemoryIO> {
   }
 
   void read_sectors(void* out, uint32_t begin_sector, uint32_t n_sector) {
+    std::lock_guard g(lock);
     assert(n_sector);
 
     if (begin_sector + n_sector > mem.size()) {

@@ -1,3 +1,5 @@
+#include <thread>
+
 #include "catch_amalgamated.hpp"
 #include "tsdb/series.h"
 using namespace tsdb;
@@ -191,4 +193,66 @@ TEST_CASE("series clear") {
     });
     REQUIRE(count == 0);
   }
+}
+
+TEST_CASE("Multithread") {
+  using namespace std::chrono_literals;
+  SectorMemoryIO io{512};
+
+  auto partition1 = Partition::create_with_sector_address(10, 120);
+  auto partition2 = Partition::create_with_sector_address(121, 300);
+  Series series1{io, partition1, SeriesConfig{100, 4096}};
+  Series series2{io, partition2, SeriesConfig{100, 4096}};
+
+  std::thread thread1([&] {
+    for (int i = 0; i < 10; ++i) {
+      std::string data = "hello, world!";
+      series1.insert(data.data(), data.size());
+      std::this_thread::sleep_for(0.5s);
+    }
+  });
+
+  std::thread thread2([&] {
+    for (int i = 0; i < 20; ++i) {
+      std::string data;
+      data.resize(1024);
+      std::fill(data.begin(), data.end(), 0x03);
+      series2.insert(data.data(), data.size());
+      std::this_thread::sleep_for(0.2s);
+    }
+  });
+
+  std::thread thread3([&] {
+    for (int i = 0; i < 10; ++i) {
+      series1.iterate([](auto& data_log_entry) {
+        std::string data;
+        data.resize(1024);
+        data_log_entry.read(data.data(), data.size());
+        REQUIRE(strcmp(data.c_str(), "hello, world!") == 0);
+        return true;
+      });
+      std::this_thread::sleep_for(0.5s);
+    }
+  });
+
+  std::thread thread4([&] {
+    for (int i = 0; i < 30; ++i) {
+      series2.iterate([](auto& data_log_entry) {
+        std::string data;
+        data.resize(1024);
+        auto sz = data_log_entry.read(data.data(), data.size());
+        REQUIRE(sz == 1024);
+        for (int j = 0; j < sz; ++j) {
+          REQUIRE(data[j] == 0x03);
+        }
+        return true;
+      });
+      std::this_thread::sleep_for(0.1s);
+    }
+  });
+
+  thread1.join();
+  thread2.join();
+  thread3.join();
+  thread4.join();
 }
