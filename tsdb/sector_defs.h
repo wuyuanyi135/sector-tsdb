@@ -7,10 +7,11 @@
 namespace tsdb {
 
 struct LogEntry {
-  uint32_t timestamp;
+  uint64_t timestamp;
   uint32_t checksum;
   uint32_t begin_sector_offset;
   uint32_t size;
+  uint32_t attr{0};
 
   inline size_t end_sector_addr() const {
     return begin_sector_offset + min_sector_for_size(size) - 1;
@@ -22,10 +23,8 @@ struct LogEntry {
 
 struct HeaderSector {
   uint32_t crc;
-  uint32_t last_update_timestamp;
-  uint32_t init_count;
   uint32_t write_count;
-  constexpr static uint32_t n_entries = 31;
+  constexpr static uint32_t n_entries = 21;
   LogEntry entries[n_entries];
 
   /// This function scan through each entries and gives the index of usable slot.
@@ -42,7 +41,7 @@ struct HeaderSector {
         return i;
       }
 
-      if (ts > greatest_timestamp) {
+      if (ts >= greatest_timestamp) {
         // monotonic, this is a used entry
         greatest_timestamp = ts;
       } else {
@@ -75,7 +74,6 @@ struct HeaderSector {
   void clear(bool clear_stats = true) {
     if (clear_stats) {
       write_count = 0;
-      init_count = 0;
     }
     auto offset = offsetof(HeaderSector, entries);
     memset((uint8_t*)this + offset, 0, sector_size - offset);

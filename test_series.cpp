@@ -1,6 +1,7 @@
 #include <thread>
 
 #include "catch_amalgamated.hpp"
+#include "fakeit.hpp"
 #include "tsdb/series.h"
 using namespace tsdb;
 using namespace tsdb::literals;
@@ -195,7 +196,7 @@ TEST_CASE("series clear") {
   }
 }
 
-TEST_CASE("Multithread") {
+TEST_CASE("Multithread", "[.]") {
   using namespace std::chrono_literals;
   SectorMemoryIO io{512};
 

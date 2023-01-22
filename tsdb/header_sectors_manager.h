@@ -72,7 +72,6 @@ struct HeaderSectorsManager {
           current_data_sector_offset = current_header_sector->entries[slot - 1].end_sector_addr() + 1;
         }
         current_slot_idx = slot;
-        current_header_sector->init_count++;
         return;
       }
     }
@@ -80,7 +79,6 @@ struct HeaderSectorsManager {
     // If reach here, cannot find any available slot, start from the first sector and first slot.
     load_header_sector(0);
     current_slot_idx = 0;
-    current_header_sector->init_count++;
   }
 
   void load_header_sector(size_t sector_idx) {
@@ -172,7 +170,6 @@ struct HeaderSectorsManager {
 
   void sync_current_sector() {
     current_header_sector->write_count++;
-    current_header_sector->last_update_timestamp = duration_cast<std::chrono::seconds>(ClockType::now().time_since_epoch()).count();
     current_header_sector->update_crc<CRC>();
 
     io.write_sectors(current_header_sector.get(), begin_sector_addr + current_header_sector_idx, 1);
@@ -205,7 +202,7 @@ struct HeaderSectorsManager {
     // 2. respecting the before and after. if they are zero, ignore.
     // 3. If the adjacent entries has overlapping data sectors
 
-    uint32_t decreasing_timestamp = UINT32_MAX;
+    uint64_t decreasing_timestamp = UINT64_MAX;
 
     auto last = previous_log_entry(tmp_header_sector, tmp_sector_idx, tmp_slot_idx);
 

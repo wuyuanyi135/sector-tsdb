@@ -63,7 +63,7 @@ struct Series {
     std::lock_guard g(lock);
 
     if (timestamp == 0) {
-      timestamp = duration_cast<std::chrono::seconds>(ClockType::now().time_since_epoch()).count();
+      timestamp = duration_cast<std::chrono::microseconds>(ClockType::now().time_since_epoch()).count();
     }
 
     CRC crc_computer;
@@ -130,7 +130,7 @@ struct Series {
     lock.lock();
 
     if (timestamp == 0) {
-      timestamp = duration_cast<std::chrono::seconds>(ClockType::now().time_since_epoch()).count();
+      timestamp = duration_cast<std::chrono::microseconds>(ClockType::now().time_since_epoch()).count();
     }
 
     auto& entry = header_sectors_manager.add_log_partial(len, timestamp);
@@ -193,6 +193,11 @@ struct Series {
   void clear() {
     std::lock_guard g(lock);
     header_sectors_manager.clear();
+  }
+
+  void sync() {
+    std::lock_guard g(lock);
+    header_sectors_manager.sync_current_sector();
   }
 
  protected:

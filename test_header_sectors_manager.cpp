@@ -18,9 +18,9 @@ TEST_CASE("header sectors manager") {
     HeaderSectorsManager hsm{io, 1, 1, 31};
 
     auto expected_entries = std::vector<LogEntry>({
-        {1673879016, 0xff, 0, 256},
-        {1673879017, 0xfe, 0, 1000},
-        {1673879019, 0xaa, 0, 1},
+        {1673879016, 0xff, 0, 256, 0},
+        {1673879017, 0xfe, 0, 1000, 0},
+        {1673879019, 0xaa, 0, 1, 0},
     });
 
     int expected_sector_begin_addr[] = {2, 3, 5, 6};
