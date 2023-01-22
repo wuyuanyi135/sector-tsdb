@@ -8,8 +8,8 @@
 #include <vector>
 
 #include "crc.h"
-#include "sector_defs.h"
 #include "exception.h"
+#include "sector_defs.h"
 
 namespace tsdb {
 template <typename IO, typename CRC = CRCDefault, typename ClockType = std::chrono::system_clock>
@@ -125,7 +125,9 @@ struct HeaderSectorsManager {
   /// After done, call advance_slot().
   /// \return
   LogEntry& add_log_partial(uint32_t data_size, uint32_t timestamp) {
-    assert(timestamp >= previous_timestamp);
+    if (timestamp < previous_timestamp) {
+      timestamp = previous_timestamp;
+    }
     previous_timestamp = timestamp;
 
     if (data_size == 0) {

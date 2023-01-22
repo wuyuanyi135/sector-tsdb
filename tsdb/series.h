@@ -43,7 +43,7 @@ struct Series {
 
   HeaderSectorsManagerType header_sectors_manager{io, partition.begin_sector_addr, n_header_sectors, n_total_sectors};
 
-  std::mutex lock;
+  std::mutex lock{};
 
  public:
   const Partition& get_partition() {
@@ -157,6 +157,9 @@ struct Series {
         return 0;
       }
       len = std::min(len, log_entry.size - sector_size * idx);
+      if (len == 0) {
+        return 0;
+      }
       io.read_bytes_from_sectors(out, len, data_sector_begin_addr + log_entry.begin_sector_offset + idx);
       crc_computer.update(out, len);
       idx += min_sector_for_size(len);
@@ -191,6 +194,7 @@ struct Series {
     std::lock_guard g(lock);
     header_sectors_manager.clear();
   }
+
  protected:
   void write_data_sectors(const void* buffer, uint32_t len, AbsoluteSectorAddress begin_sector_addr) {
     io.write_sectors(buffer, begin_sector_addr, min_sector_for_size(len));
