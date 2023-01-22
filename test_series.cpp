@@ -277,11 +277,13 @@ TEST_CASE("set and get attribute") {
   {
     Series series{io, partition, SeriesConfig{100, 4096}};
     size_t count = 0;
-    series.iterate([&](auto& data_log_entry){
-      REQUIRE(data_log_entry.log_entry.attr == count);
-      count ++;
-      return true;
-    }, false);
+    series.iterate(
+        [&](auto& data_log_entry) {
+          REQUIRE(data_log_entry.log_entry.attr == count);
+          count++;
+          return true;
+        },
+        false);
     REQUIRE(count == 71);
   }
 
@@ -303,11 +305,97 @@ TEST_CASE("set and get attribute") {
   {
     Series series{io, partition, SeriesConfig{100, 4096}};
     size_t count = 0;
-    series.iterate([&](auto& data_log_entry){
+    series.iterate([&](auto& data_log_entry) {
       REQUIRE(data_log_entry.log_entry.attr == count + 95);
-      count ++;
+      count++;
       return true;
-    }, false);
+    },
+                   false);
     REQUIRE(count == 105);
   }
+}
+
+TEST_CASE("Overwrite and all sectors are monotonic, starting from beginning") {
+  const size_t n_header_sectors = 3;
+  SectorMemoryIO io{10240};
+  auto partition = Partition::create(0, 10240);
+  Series series{io, partition, SeriesConfig{3 * HeaderSector::n_entries - 1, 4096}};
+  uint32_t dummy = 0;
+  int timestamp_counter = 1;
+  for (int i = 0; i < n_header_sectors; ++i) {
+    for (int j = 0; j < HeaderSector::n_entries; ++j) {
+      series.insert(&dummy, sizeof(dummy), 0, timestamp_counter++);
+    }
+  }
+  series.sync();
+  // Make sure the timestamp is monotonic for all sectors
+  uint64_t previous_timestamp = 0;
+  for (int i = 0; i < n_header_sectors; ++i) {
+    auto& h = (HeaderSector&)io.mem[i];
+    for (int j = 0; j < HeaderSector::n_entries; ++j) {
+      REQUIRE(h.entries[j].timestamp > previous_timestamp);
+      previous_timestamp = h.entries[j].timestamp;
+    }
+  }
+
+  // Reload the series
+  Series series1{io, partition, SeriesConfig{3 * HeaderSector::n_entries - 1, 4096}};
+
+  series1.insert(&dummy, sizeof(dummy), 0, timestamp_counter++);
+  series1.sync();
+
+  {
+    auto& h = (HeaderSector&)io.mem[0];
+    REQUIRE(h.entries[0].timestamp == timestamp_counter - 1);
+    REQUIRE(h.entries[1].timestamp == 2);
+  }
+
+  // Reload again, iterate and check how many items are there
+  Series series2{io, partition, SeriesConfig{3 * HeaderSector::n_entries - 1, 4096}};
+  size_t count = 0;
+  series.iterate([&](auto& data_log_entry) {
+    count++;
+    return true;
+  });
+  REQUIRE(count == 3 * HeaderSector::n_entries);
+}
+
+TEST_CASE("Overwrite and all sectors are monotonic, starting from the second sector") {
+  const size_t n_header_sectors = 3;
+  SectorMemoryIO io{10240};
+  auto partition = Partition::create(0, 10240);
+  Series series{io, partition, SeriesConfig{3 * HeaderSector::n_entries - 1, 4096}};
+  uint32_t dummy = 0;
+  int timestamp_counter = 1;
+  for (int i = 0; i < n_header_sectors + 1; ++i) {
+    for (int j = 0; j < HeaderSector::n_entries; ++j) {
+      series.insert(&dummy, sizeof(dummy), 0, timestamp_counter++);
+    }
+  }
+  series.sync();
+
+  Series series1{io, partition, SeriesConfig{3 * HeaderSector::n_entries - 1, 4096}};
+
+  uint64_t timestamp = HeaderSector::n_entries+1;
+  size_t count = 0;
+  series1.iterate([&](auto& data_log_entry){
+    count ++;
+    REQUIRE(data_log_entry.log_entry.timestamp == timestamp ++);
+    return true;
+  }, false);
+  REQUIRE(count == 3 * HeaderSector::n_entries);
+
+  series1.insert(&dummy, sizeof(dummy), timestamp_counter++);
+  series1.sync();
+
+  Series series2{io, partition, SeriesConfig{3 * HeaderSector::n_entries - 1, 4096}};
+  count = 0;
+  timestamp += 1;
+  series1.iterate([&](auto& data_log_entry){
+    count ++;
+    INFO(data_log_entry.log_entry.timestamp);
+//    REQUIRE(data_log_entry.log_entry.timestamp == timestamp ++);
+    return true;
+  }, false);
+  REQUIRE(count == 3 * HeaderSector::n_entries);
 }

@@ -34,7 +34,7 @@ struct HeaderSector {
 
   /// \return
   int find_empty_slot() {
-    uint32_t greatest_timestamp = 0;
+    uint64_t greatest_timestamp = 0;
     for (int i = 0; i < n_entries; ++i) {
       auto ts = entries[i].timestamp;
       if (ts == 0) {

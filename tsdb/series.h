@@ -55,7 +55,7 @@ struct Series {
   }
 
   /// Insert whole buffer at once
-  void insert(const void* buffer, uint32_t len, uint32_t attr = 0, uint32_t timestamp = 0) {
+  void insert(const void* buffer, uint32_t len, uint32_t attr = 0, uint64_t timestamp = 0) {
     assert(buffer);
     assert(len);
     assert(len <= cfg.max_file_size);
@@ -178,7 +178,7 @@ struct Series {
 
   template <typename TCb>
     requires std::is_invocable_r_v<bool, TCb, DataLogEntry&>
-  void iterate(const TCb& fcn, bool descending = true, uint32_t after = 0, uint32_t before = 0) {
+  void iterate(const TCb& fcn, bool descending = true, uint64_t after = 0, uint64_t before = 0) {
     std::lock_guard g(lock);
     auto entries = header_sectors_manager.get_entries(descending, after, before);
 

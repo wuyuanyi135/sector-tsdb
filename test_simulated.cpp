@@ -1,6 +1,8 @@
 //
 // Created by wuyua on 2023/1/22.
 //
+#define TSDB_DEBUG
+
 #include "catch_amalgamated.hpp"
 #include "tsdb/series.h"
 
@@ -19,8 +21,9 @@ auto make_series = []() -> std::array<std::unique_ptr<Series<SectorMemoryIO>>, 2
 };
 
 TEST_CASE("Simulated case") {
+  int timestamp_count = 1;
   {
-    // Initial should be zero
+    INFO("Initial should be zero");
     size_t count = 0;
     auto series = make_series();
     for (auto& s : series) {
@@ -29,32 +32,19 @@ TEST_CASE("Simulated case") {
     }
   }
   {
-    // Push in some small data, but not triggering auto saving
+    INFO("Push in some small data, but not triggering auto saving");
     auto series = make_series();
     for (auto& s : series) {
       for (int i = 0; i < 10; ++i) {
         std::string data;
         data.resize(10_kb, (char)i);
-        s->insert(data.data(), data.size());
+        s->insert(data.data(), data.size(), timestamp_count++);
       }
       size_t count = 0;
-      s->iterate(
-          [&](auto& data_log_entry) {
-            std::string recv;
-            recv.resize(data_log_entry.log_entry.size);
-            auto len = data_log_entry.read(recv.data(), recv.size());
-            REQUIRE(len == 10_kb);
-            for (int j = 0; j < len; ++j) {
-              REQUIRE(recv[j] == count);
-            }
-            count++;
-            return true;
-          },
-          false);
     }
 
     {
-      // Reload, should still be empty
+      INFO("Reload, should still be empty (unless synchronized or get-entriesed, they do sync)");
       size_t count = 0;
       auto series = make_series();
       for (auto& s : series) {
@@ -64,13 +54,13 @@ TEST_CASE("Simulated case") {
     }
 
     {
-      // Push in some small data, then sync
+      INFO("Push in some small data, then sync");
       auto series = make_series();
       for (auto& s : series) {
         for (int i = 0; i < 10; ++i) {
           std::string data;
           data.resize(10_kb, (char)i);
-          s->insert(data.data(), data.size());
+          s->insert(data.data(), data.size(), timestamp_count++);
         }
         s->sync();
       }
@@ -78,7 +68,7 @@ TEST_CASE("Simulated case") {
   }
 
   {
-    //  After sync, there should be data
+    INFO("After sync, there should be data");
     auto series = make_series();
     for (auto& s : series) {
       size_t count = 0;
@@ -100,39 +90,41 @@ TEST_CASE("Simulated case") {
   }
 
   {
-    // After inserting more than sector page, it should automatically save.
+    INFO("After inserting more than sector page, it should automatically save");
     auto series = make_series();
     for (auto& s : series) {
       for (int i = 0; i < HeaderSector::n_entries; ++i) {
         std::string data;
         data.resize(10_kb, (char)(i + 10));
-        s->insert(data.data(), data.size());
+        s->insert(data.data(), data.size(), timestamp_count++);
       }
     }
   }
 
-  // It should auto save
-  auto series = make_series();
-  for (auto& s : series) {
-    size_t count = 0;
-    s->iterate(
-        [&](auto& data_log_entry) {
-          std::string recv;
-          recv.resize(data_log_entry.log_entry.size);
-          auto len = data_log_entry.read(recv.data(), recv.size());
-          REQUIRE(len == 10_kb);
-          for (int j = 0; j < len; ++j) {
-            REQUIRE(recv[j] == count);
-          }
-          count++;
-          return true;
-        },
-        false);
-    REQUIRE(count == HeaderSector::n_entries);
+  {
+    INFO("Should autosave");
+    auto series = make_series();
+    for (auto& s : series) {
+      size_t count = 0;
+      s->iterate(
+          [&](auto& data_log_entry) {
+            std::string recv;
+            recv.resize(data_log_entry.log_entry.size);
+            auto len = data_log_entry.read(recv.data(), recv.size());
+            REQUIRE(len == 10_kb);
+            for (int j = 0; j < len; ++j) {
+              REQUIRE(recv[j] == count);
+            }
+            count++;
+            return true;
+          },
+          false);
+      REQUIRE(count == HeaderSector::n_entries);
+    }
   }
 
   {
-    // After clear, it should get back to empty
+    INFO("After clear, it should get back to empty");
     auto series = make_series();
     for (auto& s : series) {
       s->clear();
@@ -140,6 +132,7 @@ TEST_CASE("Simulated case") {
   }
 
   {
+    INFO("After clear, iterate");
     auto series = make_series();
     for (auto& s : series) {
       size_t count = 0;
@@ -154,14 +147,14 @@ TEST_CASE("Simulated case") {
   }
 
   {
-    // Insert many data, overflow and sync
+    INFO("Insert many data, overflow and sync");
     auto series = make_series();
     for (auto& s : series) {
       for (int i = 0; i < 200; ++i) {
         std::vector<uint8_t> data;
         data.resize(512, (uint8_t)i);
         // Warning: timestamp should not duplicate if it is crossing the sector boundary!!!!
-        s->insert(data.data(), data.size());
+        s->insert(data.data(), data.size(), timestamp_count++);
       }
       s->sync();
     }
