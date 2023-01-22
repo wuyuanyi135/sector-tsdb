@@ -55,7 +55,7 @@ struct Series {
   }
 
   /// Insert whole buffer at once
-  void insert(const void* buffer, uint32_t len, uint32_t timestamp = 0) {
+  void insert(const void* buffer, uint32_t len, uint32_t attr = 0, uint32_t timestamp = 0) {
     assert(buffer);
     assert(len);
     assert(len <= cfg.max_file_size);
@@ -70,7 +70,7 @@ struct Series {
     crc_computer.update(buffer, len);
     auto checksum = crc_computer.get();
 
-    RelativeSectorAddress relative_sector_address = header_sectors_manager.add_log(len, checksum, timestamp);
+    RelativeSectorAddress relative_sector_address = header_sectors_manager.add_log(len, checksum, timestamp, attr);
     AbsoluteSectorAddress absolute_sector_address = header_sectors_manager.sector_addr_r2a(relative_sector_address);
 
     write_data_sectors(buffer, len, absolute_sector_address);

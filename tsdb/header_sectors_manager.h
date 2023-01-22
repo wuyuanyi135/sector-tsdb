@@ -122,9 +122,10 @@ struct HeaderSectorsManager {
   /// The reference to the entry is returned for updating the checksum
   /// After done, call advance_slot().
   /// \return
-  LogEntry& add_log_partial(uint32_t data_size, uint32_t timestamp) {
+  LogEntry& add_log_partial(uint32_t data_size, uint32_t timestamp, uint32_t attr = 0) {
     if (timestamp < previous_timestamp) {
-      timestamp = previous_timestamp;
+      // This is a bit dangerous?
+      timestamp = previous_timestamp + 1;
     }
     previous_timestamp = timestamp;
 
@@ -147,13 +148,14 @@ struct HeaderSectorsManager {
     entry.size = data_size;
     entry.checksum = 0;
     entry.begin_sector_offset = current_data_sector_offset;
+    entry.attr = attr;
     current_data_sector_offset += required_sectors;
     return entry;
   }
 
   /// returns the *relative* begin sector address for this entry
-  RelativeSectorAddress add_log(uint32_t data_size, uint32_t checksum, uint32_t timestamp) {
-    auto& entry = add_log_partial(data_size, timestamp);
+  RelativeSectorAddress add_log(uint32_t data_size, uint32_t checksum, uint32_t timestamp, uint32_t attr = 0) {
+    auto& entry = add_log_partial(data_size, timestamp, attr);
     entry.checksum = checksum;
     // Copy it since advance_slot will change entry!
     auto ret = entry.begin_sector_offset;

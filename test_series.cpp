@@ -146,7 +146,7 @@ TEST_CASE("ESP32 errorous write sector order") {
   Series series{io, partition, SeriesConfig{100, 4096}};
 
   for (int i = 0; i < 100; ++i) {
-    series.insert(&i, 4, 0);
+    series.insert(&i, 4);
   }
 }
 
@@ -172,7 +172,7 @@ TEST_CASE("series clear") {
 
   std::string buffer = "hello, world!";
   for (int i = 0; i < 5; ++i) {
-    series.insert(buffer.data(), buffer.size(), 0);
+    series.insert(buffer.data(), buffer.size());
   }
 
   {
@@ -256,4 +256,58 @@ TEST_CASE("Multithread", "[.]") {
   thread2.join();
   thread3.join();
   thread4.join();
+}
+
+TEST_CASE("set and get attribute") {
+  SectorMemoryIO io{1024};
+
+  auto partition = Partition::create_with_sector_address(0, 1024);
+  {
+    Series series{io, partition, SeriesConfig{100, 4096}};
+
+    std::vector<uint8_t> data;
+    data.resize(1024);
+    for (int i = 0; i < 71; ++i) {
+      series.insert(data.data(), data.size(), i, i + 1);
+    }
+
+    series.sync();
+  }
+
+  {
+    Series series{io, partition, SeriesConfig{100, 4096}};
+    size_t count = 0;
+    series.iterate([&](auto& data_log_entry){
+      REQUIRE(data_log_entry.log_entry.attr == count);
+      count ++;
+      return true;
+    }, false);
+    REQUIRE(count == 71);
+  }
+
+  {
+    Series series{io, partition, SeriesConfig{100, 4096}};
+    series.clear();
+
+    std::vector<uint8_t> data;
+
+    data.resize(1024);
+    // overflowing
+    for (int i = 0; i < 200; ++i) {
+      series.insert(data.data(), data.size(), i, i + 1);
+    }
+
+    series.sync();
+  }
+
+  {
+    Series series{io, partition, SeriesConfig{100, 4096}};
+    size_t count = 0;
+    series.iterate([&](auto& data_log_entry){
+      REQUIRE(data_log_entry.log_entry.attr == count + 95);
+      count ++;
+      return true;
+    }, false);
+    REQUIRE(count == 105);
+  }
 }
