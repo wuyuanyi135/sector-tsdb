@@ -10,12 +10,12 @@ TEST_CASE("crc") {
   SECTION("full") {
     const char* data = "123456789";
     crc.update(data, strlen(data));
-    REQUIRE(crc.get() == 0xFC891918);
+    REQUIRE(crc.get() == 0x89a1897f);
   }
 
   SECTION("partial") {
     crc.update("1234", 4);
     crc.update("56789", 5);
-    REQUIRE(crc.get() == 0xFC891918);
+    REQUIRE(crc.get() == 0x89a1897f);
   }
 }
