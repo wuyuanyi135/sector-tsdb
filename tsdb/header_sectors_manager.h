@@ -139,7 +139,7 @@ struct HeaderSectorsManager {
         return sector_mem->entries[slot_idx];
       }
       // The last one is in the previous page (may round back to the last)
-      auto original_sector_idx = sector_idx;
+      [[maybe_unused]] auto original_sector_idx = sector_idx;
       sector_idx = sector_idx == 0 ? n_header_sectors - 1 : sector_idx - 1;
       TSDB_LOG("sector idx {}->{}", original_sector_idx, sector_idx);
       io.read_sectors(sector_mem.get(), begin_sector_addr + sector_idx, 1);
