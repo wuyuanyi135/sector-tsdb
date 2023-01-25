@@ -17,12 +17,12 @@ struct CRC {
   }
 
   uint32_t get() {
-    return ~crc;
+    return crc;
   }
 };
 
 struct CRCDefault : CRC<CRCDefault> {
-  explicit CRCDefault(uint32_t poly = 0x04C11DB7, uint32_t init = UINT32_MAX) : CRC(poly, init) {}
+  explicit CRCDefault(uint32_t poly = 0x04C11DB7, uint32_t init = 0) : CRC(poly, init) {}
 
   void update(const void* data, size_t len) {
     const auto* buffer = (const unsigned char*)data;
