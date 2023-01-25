@@ -156,10 +156,12 @@ struct Series {
       if (idx > min_sector_for_size(log_entry.size)) {
         return 0;
       }
-      len = std::min(len, log_entry.size - sector_size * idx);
-      if (len == 0) {
+      if (log_entry.size > sector_size * idx) {
+        len = std::min(len, log_entry.size - sector_size * idx);
+      } else {
         return 0;
       }
+
       io.read_bytes_from_sectors(out, len, data_sector_begin_addr + log_entry.begin_sector_offset + idx);
       crc_computer.update(out, len);
       idx += min_sector_for_size(len);
